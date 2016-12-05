@@ -115,6 +115,11 @@ func (b *Bucket) Bytes() uint64 {
 	return b.bytes
 }
 
+// File returns the underlying file so it can be read from.
+func (b *Bucket) File() afero.File {
+	return b.file
+}
+
 // BucketOptions is used to configure bucket instances.
 type BucketOptions struct {
 	Path string

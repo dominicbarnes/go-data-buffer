@@ -23,13 +23,22 @@ func (suite *BufferTestSuite) SetupTest() {
 	})
 }
 
-func (suite *BufferTestSuite) TestCreate() {
-	suite.NoError(suite.buffer.Create())
+func (suite *BufferTestSuite) TestOpen() {
+	suite.NoError(suite.buffer.Open())
 	suite.assertBufferRootExists(true)
 }
 
+func (suite *BufferTestSuite) TestClose() {
+	data := []byte("hello world\n")
+	suite.NoError(suite.buffer.Write("1", data))
+	suite.NoError(suite.buffer.Write("2", data))
+	suite.NoError(suite.buffer.Close())
+	suite.assertBucketFileContains("1", data)
+	suite.assertBucketFileContains("2", data)
+}
+
 func (suite *BufferTestSuite) TestDestroy() {
-	suite.NoError(suite.buffer.Create())
+	suite.NoError(suite.buffer.Open())
 	suite.NoError(suite.buffer.Destroy())
 	suite.assertBufferRootExists(false)
 }

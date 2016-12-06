@@ -14,6 +14,7 @@ type Bucket struct {
 	path   string
 	fs     afero.Fs
 	file   afero.File
+	open   bool
 	writer *bufio.Writer
 	writes uint
 	bytes  uint64
@@ -29,17 +30,45 @@ func NewBucket(o BucketOptions) *Bucket {
 	}
 }
 
-// Create does the initial creation of the underlying file and bufio writer. If
-// the file already exists, it will be emptied. This method should only be
-// invoked once, and will return an error if invoked multiple times.
-func (b *Bucket) Create() error {
+// Open is the primary interface for initializing the bucket on disk and setting
+// up for writes.
+func (b *Bucket) Open() error {
 	b.Lock()
 	defer b.Unlock()
 
-	if b.file != nil {
-		return errors.New("bucket already created")
+	if b.open {
+		return errors.New("bucket already open")
 	}
 
+	if err := b.create(); err != nil {
+		return err
+	}
+
+	b.open = true
+
+	return nil
+}
+
+// Close flushes everything in memory to disk, converts the bucket to stop
+// accepting new writes and seeks the file pointer back to the beginning in
+// preparation for reading. (as such, it must be called before being read from)
+func (b *Bucket) Close() error {
+	b.Lock()
+	defer b.Unlock()
+
+	if err := b.flush(); err != nil {
+		return err
+	}
+
+	b.open = false
+	if _, err := b.file.Seek(0, 0); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *Bucket) create() error {
 	file, err := b.fs.Create(b.path)
 	if err != nil {
 		return err
@@ -68,14 +97,12 @@ func (b *Bucket) Destroy() error {
 
 // Write adds the given data to this bucket.
 func (b *Bucket) Write(data []byte) error {
-	if b.file == nil {
-		if err := b.Create(); err != nil {
-			return err
-		}
-	}
-
 	b.Lock()
 	defer b.Unlock()
+
+	if !b.open {
+		return errors.New("bucket not accepting writes, make sure to open it first")
+	}
 
 	if _, err := b.writer.Write(data); err != nil {
 		return err
@@ -92,6 +119,10 @@ func (b *Bucket) Flush() error {
 	b.Lock()
 	defer b.Unlock()
 
+	return b.flush()
+}
+
+func (b *Bucket) flush() error {
 	if err := b.writer.Flush(); err != nil {
 		return err
 	}
@@ -115,9 +146,16 @@ func (b *Bucket) Bytes() uint64 {
 	return b.bytes
 }
 
-// File returns the underlying file so it can be read from.
-func (b *Bucket) File() afero.File {
-	return b.file
+// Read implements io.Reader for easy interoperability.
+func (b *Bucket) Read(p []byte) (int, error) {
+	b.RLock()
+	defer b.RUnlock()
+
+	if b.open {
+		return 0, errors.New("bucket accepting writes, make sure to close before reading")
+	}
+
+	return b.file.Read(p)
 }
 
 // BucketOptions is used to configure bucket instances.

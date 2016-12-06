@@ -10,9 +10,9 @@ import (
 // Buffer represents a data buffering target.
 type Buffer struct {
 	sync.RWMutex
-	buckets map[string]*Bucket
 	root    string
 	fs      afero.Fs
+	buckets map[string]*Bucket
 }
 
 // NewBuffer creates a new instance from the given options.
@@ -26,13 +26,29 @@ func NewBuffer(o BufferOptions) *Buffer {
 	}
 }
 
-// Create initializes the root directory on disk.
-func (b *Buffer) Create() error {
+// Open prepares for writes by creating the directory on disk.
+func (b *Buffer) Open() error {
 	b.Lock()
 	defer b.Unlock()
 
+	return b.create()
+}
+
+func (b *Buffer) create() error {
 	if err := b.fs.MkdirAll(b.root, 0755); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// Close switches all the buckets to stop accepting writes in preparation for
+// reading.
+func (b *Buffer) Close() error {
+	for _, bucket := range b.buckets {
+		if err := bucket.Close(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -84,6 +100,9 @@ func (b *Buffer) Get(name string) (*Bucket, error) {
 		Path: filepath.Join(b.root, name),
 		Fs:   b.fs,
 	})
+	if err := bucket.Open(); err != nil {
+		return nil, err
+	}
 
 	b.buckets[name] = bucket
 	return bucket, nil

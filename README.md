@@ -18,13 +18,18 @@ to assign your own filename.
 ## Example
 
 ```go
-import "github.com/dominicbarnes/go-data-buffer"
+import (
+  "ioutil"
+  "log"
+
+  "github.com/dominicbarnes/go-data-buffer"
+)
 
 func main() {
   buffer := buffer.NewBuffer(buffer.BufferOptions{Root: "./data"})
 
   // create the necessary directory on disk
-  if err := buffer.Create(); err != nil {
+  if err := buffer.Open(); err != nil {
     log.Fatal(err)
   }
 
@@ -33,9 +38,19 @@ func main() {
     log.Fatal(err)
   }
 
-  // flush existing data to disk (writes use bufio for efficiency)
-  if err := buffer.FlushAll(); err != nil {
+  // when you are ready to start consuming from these files, close the buffer
+  if err := buffer.Close(); err != nil {
     log.Fatal(err)
+  }
+
+  if bucket, err := buffer.Get("bucket"); err != nil {
+    log.Fatal(err)
+  } else {
+    if data, err := ioutil.ReadAll(bucket); err != nil {
+      log.Fatal(err)
+    } else {
+      log.Print(data)
+    }
   }
 
   // you can clean up after you're done or no longer need the stuff on disk

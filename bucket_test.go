@@ -1,6 +1,8 @@
 package buffer
 
 import (
+	"io"
+	"io/ioutil"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -23,35 +25,60 @@ func (suite *BucketTestSuite) SetupTest() {
 	})
 }
 
-func (suite *BucketTestSuite) TestCreate() {
-	suite.NoError(suite.bucket.Create())
+func (suite *BucketTestSuite) TestOpen() {
+	suite.NoError(suite.bucket.Open())
 	suite.assertFileExists(true)
 }
 
-func (suite *BucketTestSuite) TestCreateMultiple() {
-	suite.NoError(suite.bucket.Create())
-	suite.Error(suite.bucket.Create(), "bucket already created")
+func (suite *BucketTestSuite) TestOpenMultiple() {
+	suite.NoError(suite.bucket.Open())
+	suite.Error(suite.bucket.Open(), "bucket already open")
+}
+
+func (suite *BucketTestSuite) TestClose() {
+	suite.NoError(suite.bucket.Open())
+	data := []byte("hello world")
+	suite.NoError(suite.bucket.Write(data))
+	suite.NoError(suite.bucket.Close())
+}
+
+func (suite *BucketTestSuite) TestCloseSeek() {
+	suite.NoError(suite.bucket.Open())
+	data := []byte("hello world")
+	suite.NoError(suite.bucket.Write(data))
+	suite.NoError(suite.bucket.Close())
+	pos, err := suite.bucket.file.Seek(0, io.SeekCurrent)
+	suite.NoError(err)
+	suite.EqualValues(pos, 0)
 }
 
 func (suite *BucketTestSuite) TestDestroy() {
-	suite.NoError(suite.bucket.Create())
+	suite.NoError(suite.bucket.Open())
 	suite.NoError(suite.bucket.Destroy())
 	suite.assertFileExists(false)
 }
 
+func (suite *BucketTestSuite) TestWriteUnopened() {
+	data := []byte("hello world")
+	suite.Error(suite.bucket.Write(data), "bucket not accepting writes, make sure to open it first")
+}
+
 func (suite *BucketTestSuite) TestWriteBuffered() {
+	suite.NoError(suite.bucket.Open())
 	data := []byte("hello world")
 	suite.NoError(suite.bucket.Write(data))
 	suite.assertFileEmpty()
 }
 
 func (suite *BucketTestSuite) TestWriteFlushed() {
+	suite.NoError(suite.bucket.Open())
 	data := make([]byte, 5120, 5120)
 	suite.NoError(suite.bucket.Write(data))
 	suite.assertFileContains(data)
 }
 
 func (suite *BucketTestSuite) TestFlush() {
+	suite.NoError(suite.bucket.Open())
 	data := []byte("hello world")
 	suite.NoError(suite.bucket.Write(data))
 	suite.NoError(suite.bucket.Flush())
@@ -59,6 +86,7 @@ func (suite *BucketTestSuite) TestFlush() {
 }
 
 func (suite *BucketTestSuite) TestWrites() {
+	suite.NoError(suite.bucket.Open())
 	data := []byte("hello world\n")
 	suite.NoError(suite.bucket.Write(data))
 	suite.NoError(suite.bucket.Write(data))
@@ -66,10 +94,31 @@ func (suite *BucketTestSuite) TestWrites() {
 }
 
 func (suite *BucketTestSuite) TestBytes() {
+	suite.NoError(suite.bucket.Open())
 	data := []byte("hello world\n")
 	suite.NoError(suite.bucket.Write(data))
 	suite.NoError(suite.bucket.Write(data))
 	suite.EqualValues(2*len(data), suite.bucket.Bytes())
+}
+
+func (suite *BucketTestSuite) TestReader() {
+	suite.Implements((*io.Reader)(nil), suite.bucket)
+}
+
+func (suite *BucketTestSuite) TestRead() {
+	suite.NoError(suite.bucket.Open())
+	data := []byte("hello world\n")
+	suite.NoError(suite.bucket.Write(data))
+	suite.NoError(suite.bucket.Close())
+	actual, err := ioutil.ReadAll(suite.bucket)
+	suite.NoError(err)
+	suite.EqualValues(data, actual)
+}
+
+func (suite *BucketTestSuite) TestReadStillOpen() {
+	suite.NoError(suite.bucket.Open())
+	_, err := ioutil.ReadAll(suite.bucket)
+	suite.Error(err, "bucket accepting writes, make sure to close before reading")
 }
 
 func (suite *BucketTestSuite) assertFileExists(expected bool) {

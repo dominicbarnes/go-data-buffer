@@ -1,7 +1,11 @@
 package buffer
 
 import (
+	"fmt"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/suite"
@@ -112,6 +116,38 @@ func (suite *BufferTestSuite) TestBytes() {
 	suite.NoError(suite.buffer.Write("1", data))
 	suite.NoError(suite.buffer.Write("2", data))
 	suite.EqualValues(2*len(data), suite.buffer.Bytes())
+}
+
+func (suite *BufferTestSuite) TestBatchWrites() {
+	wg := new(sync.WaitGroup)
+	a := suite.write(wg, "a", 50)
+	b := suite.write(wg, "b", 100)
+	c := suite.write(wg, "c", 150)
+	wg.Wait()
+	suite.NoError(suite.buffer.Close())
+	suite.EqualValues(300, suite.buffer.Writes())
+	suite.EqualValues(6000, suite.buffer.Bytes())
+	suite.assertBucketFileContains("a", []byte(a))
+	suite.assertBucketFileContains("b", []byte(b))
+	suite.assertBucketFileContains("c", []byte(c))
+}
+
+func (suite *BufferTestSuite) write(wg *sync.WaitGroup, bucket string, times int) string {
+	wg.Add(times)
+	written := make([]string, times)
+	for x := 0; x < times; x++ {
+		data := fmt.Sprintf("%06d: hello world\n", x+1)
+		go func(data string) {
+			suite.NoError(suite.buffer.Write(bucket, []byte(data)))
+			wg.Done()
+		}(data)
+
+		// add a little delay between each write to ensure that they are written in
+		// the correct order to make our assertion easier to verify.
+		time.Sleep(5 * time.Millisecond)
+		written = append(written, data)
+	}
+	return strings.Join(written, "")
 }
 
 func (suite *BufferTestSuite) assertBufferRootExists(expected bool) {

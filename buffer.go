@@ -73,13 +73,13 @@ func (b *Buffer) Destroy() error {
 
 // Write adds the given data to named bucket. It is threadsafe and can be called
 // concurrently, while maintaining the order in your buckets.
-func (b *Buffer) Write(name string, data []byte) error {
+func (b *Buffer) Write(name string, data ...[]byte) error {
 	bucket, err := b.Get(name)
 	if err != nil {
 		return err
 	}
 
-	if err := bucket.Write(data); err != nil {
+	if err := bucket.Write(data...); err != nil {
 		return err
 	}
 

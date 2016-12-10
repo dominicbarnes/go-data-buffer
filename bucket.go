@@ -96,7 +96,7 @@ func (b *Bucket) Destroy() error {
 }
 
 // Write adds the given data to this bucket.
-func (b *Bucket) Write(data []byte) error {
+func (b *Bucket) Write(data ...[]byte) error {
 	b.Lock()
 	defer b.Unlock()
 
@@ -104,12 +104,14 @@ func (b *Bucket) Write(data []byte) error {
 		return errors.New("bucket not accepting writes, make sure to open it first")
 	}
 
-	if _, err := b.writer.Write(data); err != nil {
-		return err
+	for _, chunk := range data {
+		bytes, err := b.writer.Write(chunk)
+		b.bytes += uint64(bytes)
+		if err != nil {
+			return err
+		}
 	}
-
 	b.writes++
-	b.bytes += uint64(len(data))
 
 	return nil
 }

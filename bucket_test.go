@@ -63,25 +63,10 @@ func (suite *BucketTestSuite) TestWriteUnopened() {
 	suite.Error(suite.bucket.Write(data), "bucket not accepting writes, make sure to open it first")
 }
 
-func (suite *BucketTestSuite) TestWriteBuffered() {
-	suite.NoError(suite.bucket.Open())
-	data := []byte("hello world")
-	suite.NoError(suite.bucket.Write(data))
-	suite.assertFileEmpty()
-}
-
 func (suite *BucketTestSuite) TestWriteFlushed() {
 	suite.NoError(suite.bucket.Open())
 	data := make([]byte, 5120, 5120)
 	suite.NoError(suite.bucket.Write(data))
-	suite.assertFileContains(data)
-}
-
-func (suite *BucketTestSuite) TestFlush() {
-	suite.NoError(suite.bucket.Open())
-	data := []byte("hello world")
-	suite.NoError(suite.bucket.Write(data))
-	suite.NoError(suite.bucket.Flush())
 	suite.assertFileContains(data)
 }
 

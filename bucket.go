@@ -1,8 +1,8 @@
 package buffer
 
 import (
-	"bufio"
 	"errors"
+	"io"
 	"sync"
 
 	"github.com/spf13/afero"
@@ -15,7 +15,7 @@ type Bucket struct {
 	fs     afero.Fs
 	file   afero.File
 	open   bool
-	writer *bufio.Writer
+	writer io.Writer
 	writes uint
 	bytes  uint64
 }
@@ -56,10 +56,6 @@ func (b *Bucket) Close() error {
 	b.Lock()
 	defer b.Unlock()
 
-	if err := b.flush(); err != nil {
-		return err
-	}
-
 	b.open = false
 	if _, err := b.file.Seek(0, 0); err != nil {
 		return err
@@ -75,7 +71,6 @@ func (b *Bucket) create() error {
 	}
 
 	b.file = file
-	b.writer = bufio.NewWriter(file)
 
 	return nil
 }
@@ -105,29 +100,13 @@ func (b *Bucket) Write(data ...[]byte) error {
 	}
 
 	for _, chunk := range data {
-		bytes, err := b.writer.Write(chunk)
+		bytes, err := b.file.Write(chunk)
 		b.bytes += uint64(bytes)
 		if err != nil {
 			return err
 		}
 	}
 	b.writes++
-
-	return nil
-}
-
-// Flush ensures that any data held in memory is flushed to disk immediately.
-func (b *Bucket) Flush() error {
-	b.Lock()
-	defer b.Unlock()
-
-	return b.flush()
-}
-
-func (b *Bucket) flush() error {
-	if err := b.writer.Flush(); err != nil {
-		return err
-	}
 
 	return nil
 }

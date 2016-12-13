@@ -69,23 +69,6 @@ func (suite *BufferTestSuite) TestWrite() {
 	suite.EqualValues(len(data), bucket.Bytes())
 }
 
-func (suite *BufferTestSuite) TestFlush() {
-	data := []byte("hello world\n")
-	suite.NoError(suite.buffer.Write("1", data))
-	suite.assertBucketFileEmpty("1")
-	suite.NoError(suite.buffer.Flush("1"))
-	suite.assertBucketFileContains("1", data)
-}
-
-func (suite *BufferTestSuite) TestFlushAll() {
-	data := []byte("hello world\n")
-	suite.NoError(suite.buffer.Write("1", data))
-	suite.NoError(suite.buffer.Write("2", data))
-	suite.NoError(suite.buffer.FlushAll())
-	suite.assertBucketFileContains("1", data)
-	suite.assertBucketFileContains("2", data)
-}
-
 func (suite *BufferTestSuite) TestBuckets() {
 	data := []byte("hello world\n")
 	suite.NoError(suite.buffer.Write("1", data))

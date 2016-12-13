@@ -120,32 +120,6 @@ func (b *Buffer) Buckets() []string {
 	return list
 }
 
-// Flush ensures that any data held in memory is flushed to disk immediately for
-// the named bucket.
-func (b *Buffer) Flush(name string) error {
-	bucket, err := b.Get(name)
-	if err != nil {
-		return err
-	}
-
-	if err := bucket.Flush(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// FlushAll ensures that all buckets have been flushed to disk immediately.
-func (b *Buffer) FlushAll() error {
-	for _, bucket := range b.buckets {
-		if err := bucket.Flush(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // Reset removes any existing buckets and restores the buffer to it's original
 // clean state.
 func (b *Buffer) Reset() error {

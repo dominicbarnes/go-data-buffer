@@ -161,6 +161,11 @@ func (b *Buffer) Bytes() uint64 {
 	return count
 }
 
+// Size retrieves the number of buckets in this buffer.
+func (b *Buffer) Size() uint {
+	return uint(len(b.buckets))
+}
+
 // BufferOptions is used to configure buffer instances.
 type BufferOptions struct {
 	// the root directory that will be used

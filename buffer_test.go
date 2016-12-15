@@ -101,6 +101,13 @@ func (suite *BufferTestSuite) TestBytes() {
 	suite.EqualValues(2*len(data), suite.buffer.Bytes())
 }
 
+func (suite *BufferTestSuite) TestSize() {
+	data := []byte("hello world\n")
+	suite.NoError(suite.buffer.Write("1", data))
+	suite.NoError(suite.buffer.Write("2", data))
+	suite.EqualValues(2, suite.buffer.Size())
+}
+
 func (suite *BufferTestSuite) TestBatchWrites() {
 	wg := new(sync.WaitGroup)
 	a := suite.write(wg, "a", 50)

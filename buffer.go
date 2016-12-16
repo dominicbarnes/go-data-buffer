@@ -45,6 +45,9 @@ func (b *Buffer) create() error {
 // Close switches all the buckets to stop accepting writes in preparation for
 // reading.
 func (b *Buffer) Close() error {
+	b.Lock()
+	defer b.Unlock()
+
 	for _, bucket := range b.buckets {
 		if err := bucket.Close(); err != nil {
 			return err
@@ -57,12 +60,12 @@ func (b *Buffer) Close() error {
 // Destroy deletes the entire directory and it's contents. Use this to clean up
 // when you are done using the buffer.
 func (b *Buffer) Destroy() error {
-	b.Lock()
-	defer b.Unlock()
-
 	if err := b.Reset(); err != nil {
 		return err
 	}
+
+	b.Lock()
+	defer b.Unlock()
 
 	if err := b.fs.RemoveAll(b.root); err != nil {
 		return err
@@ -123,6 +126,9 @@ func (b *Buffer) Buckets() []string {
 // Reset removes any existing buckets and restores the buffer to it's original
 // clean state.
 func (b *Buffer) Reset() error {
+	b.Lock()
+	defer b.Unlock()
+
 	for _, bucket := range b.buckets {
 		if err := bucket.Destroy(); err != nil {
 			return err
@@ -163,6 +169,9 @@ func (b *Buffer) Bytes() uint64 {
 
 // Size retrieves the number of buckets in this buffer.
 func (b *Buffer) Size() uint {
+	b.RLock()
+	defer b.RUnlock()
+
 	return uint(len(b.buckets))
 }
 
